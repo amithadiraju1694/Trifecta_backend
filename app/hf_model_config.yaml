@@ -1,0 +1,5 @@
+source:
+  repo_id: "AmithAdiraju1694/segmentation-onnx-trifecta"
+  revision: null
+  token: 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
+  local_files_only: false

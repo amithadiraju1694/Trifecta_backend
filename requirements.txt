@@ -1,0 +1,7 @@
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+onnxruntime-gpu==1.17.1
+numpy==1.26.4
+opencv-python-headless==4.9.0.80
+huggingface_hub==0.22.2
+PyYAML==6.0.2
