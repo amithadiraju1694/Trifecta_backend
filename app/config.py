@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Mapping
 
 import yaml
 
@@ -83,7 +83,7 @@ def _yaml_str(value: Any, default: str) -> str:
 
 
 def _load_hf_yaml_config() -> dict[str, Any]:
-    """Load HF repository source configuration from YAML."""
+    """Load full HF model/service configuration from YAML."""
     config_path = Path(__file__).with_name("hf_model_config.yaml")
     try:
         with config_path.open("r", encoding="utf-8") as handle:
@@ -94,18 +94,12 @@ def _load_hf_yaml_config() -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError(f"HF YAML config at {config_path} must be a mapping")
 
-    source = raw.get("source", raw)
-    if not isinstance(source, dict):
-        raise ValueError("HF YAML 'source' section must be a mapping")
+    return raw
 
-    return {
-        "hf_repo_id": source.get("repo_id", source.get("hf_repo_id")),
-        "hf_revision": source.get("revision", source.get("hf_revision")),
-        "hf_token": source.get("token", source.get("hf_token")),
-        "hf_local_files_only": source.get(
-            "local_files_only", source.get("hf_local_files_only", False)
-        ),
-    }
+
+def _get_mapping(data: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    value = data.get(key, {})
+    return value if isinstance(value, Mapping) else {}
 
 
 @dataclass(frozen=True)
@@ -136,31 +130,37 @@ class AppConfig:
 def load_config() -> AppConfig:
     """Build and return application configuration from YAML and environment variables."""
     hf_yaml = _load_hf_yaml_config()
+    source = _get_mapping(hf_yaml, "source")
+    models = _get_mapping(hf_yaml, "models")
+    service = _get_mapping(hf_yaml, "service")
 
     # Model artifact source configuration from YAML.
-    hf_repo_id = _yaml_str(hf_yaml.get("hf_repo_id"), "AmithAdiraju1694/Video_Summary")
-    hf_revision = _yaml_opt_str(hf_yaml.get("hf_revision"))
-    hf_token = _yaml_opt_str(hf_yaml.get("hf_token"))
-    hf_local_files_only = _yaml_bool(hf_yaml.get("hf_local_files_only"), False)
+    hf_repo_id = _yaml_str(source.get("repo_id"), "AmithAdiraju1694/Video_Summary")
+    hf_revision = _yaml_opt_str(source.get("revision"))
+    hf_token = _env("HF_TOKEN") or _env("HUGGINGFACE_HUB_TOKEN") or _yaml_opt_str(source.get("token"))
+    hf_local_files_only = _yaml_bool(source.get("local_files_only"), False)
 
     # File names expected inside the model repository.
-    seg_onnx_filename = _env("SEG_ONNX_FILENAME", "segmentation.onnx")
-    seg_config_filename = _env("SEG_CONFIG_FILENAME", "segmentation_config.json")
-    facemask_onnx_filename = _env("FACEMASK_ONNX_FILENAME", "facemask.onnx")
-    textmask_onnx_filename = _env("TEXTMASK_ONNX_FILENAME", "textmask.onnx")
+    seg_onnx_filename = _yaml_str(models.get("segmentation_onnx"), "segmentation.onnx")
+    seg_config_filename = _yaml_str(models.get("segmentation_config"), "segmentation_config.json")
+    facemask_onnx_filename = _yaml_str(models.get("facemask_onnx"), "facemask.onnx")
+    textmask_onnx_filename = _yaml_str(models.get("textmask_onnx"), "textmask.onnx")
 
     # Inference and batching parameters.
-    input_size = _env_int("INPUT_SIZE", 512)
-    max_batch_size = _env_int("MAX_BATCH_SIZE", 4)
-    batch_timeout_ms = _env_int("BATCH_TIMEOUT_MS", 4)
-    max_concurrency_per_gpu = _env_int("MAX_CONCURRENCY_PER_GPU", 2)
-    gpu_ids = _env_csv_int("GPU_IDS", [0, 1])
-    use_cuda = _env_bool("USE_CUDA", True)
+    input_size = int(service.get("input_size", 512))
+    max_batch_size = int(service.get("max_batch_size", 4))
+    batch_timeout_ms = int(service.get("batch_timeout_ms", 4))
+    max_concurrency_per_gpu = int(service.get("max_concurrency_per_gpu", 2))
+    gpu_ids = service.get("gpu_ids", [0, 1])
+    if not isinstance(gpu_ids, list):
+        gpu_ids = [0, 1]
+    gpu_ids = [int(x) for x in gpu_ids]
+    use_cuda = _yaml_bool(service.get("use_cuda"), True)
 
-    output_format = (_env("OUTPUT_FORMAT", "packbits") or "packbits").lower()
-    allow_webdataset = _env_bool("ALLOW_WEBDATASET", True)
+    output_format = _yaml_str(service.get("output_format"), "packbits").lower()
+    allow_webdataset = _yaml_bool(service.get("allow_webdataset"), True)
 
-    log_level = _env("LOG_LEVEL", "info")
+    log_level = _yaml_str(service.get("log_level"), "info")
 
     # Return one strongly-typed object used throughout the service.
     return AppConfig(

@@ -1,6 +1,6 @@
 # Trifecta Image ML Microservice
 
-High‑throughput, low‑latency semantic segmentation service using ONNX Runtime on multi‑GPU.
+High‑throughput, low‑latency semantic segmentation service using ONNX Runtime on a single GPU.
 
 ## Model Layout (HF Repo)
 The service downloads these files at startup from `HF_REPO_ID` (default: `AmithAdiraju1694/Video_Summary`).
@@ -42,8 +42,6 @@ Upload the two files to your HF repo (e.g., `AmithAdiraju1694/Video_Summary`).
 docker build -t trifecta-seg .
 
 docker run --gpus all -p 8080:8080 \
-  -e HF_REPO_ID=AmithAdiraju1694/Video_Summary \
-  -e GPU_IDS=0,1 \
   trifecta-seg
 ```
 
@@ -86,24 +84,13 @@ Returns `204 No Content` (stub for future).
 
 ## Performance Notes
 - Set `INPUT_SIZE` to a smaller value (e.g., 384 or 256) for lower latency.
-- Use `GPU_IDS=0,1` to enable multi‑GPU session pools.
+- Single‑GPU inference is assumed; set `service.gpu_id` in `app/hf_model_config.yaml`.
 - `MAX_CONCURRENCY_PER_GPU` caps in‑flight requests per GPU.
 - Keep models in HF repo to load at startup and stay hot in GPU memory.
 
-## Environment Variables
-- `HF_REPO_ID` (default: `AmithAdiraju1694/Video_Summary`)
-- `HF_REVISION`
-- `HF_TOKEN`
-- `HF_LOCAL_FILES_ONLY` (true/false)
-- `SEG_ONNX_FILENAME` (default: `segmentation.onnx`)
-- `SEG_CONFIG_FILENAME` (default: `segmentation_config.json`)
-- `FACEMASK_ONNX_FILENAME` (default: `facemask.onnx`)
-- `TEXTMASK_ONNX_FILENAME` (default: `textmask.onnx`)
-- `GPU_IDS` (default: `0,1`)
-- `USE_CUDA` (default: true)
-- `MAX_BATCH_SIZE` (default: 4)
-- `BATCH_TIMEOUT_MS` (default: 4)
-- `MAX_CONCURRENCY_PER_GPU` (default: 2)
-- `INPUT_SIZE` (default: 512)
-- `OUTPUT_FORMAT` (default: packbits)
-- `ALLOW_WEBDATASET` (default: true)
+## Configuration
+Service and model config now come from `app/hf_model_config.yaml`.
+Update that file to change GPU concurrency, batch size, batch timeout, CUDA usage, GPU ID, and output format.
+
+For private HF repos, set a secret env var on Spaces (recommended) and do not store tokens in YAML:
+- `HF_TOKEN` (preferred), or `HUGGINGFACE_HUB_TOKEN` (also supported)

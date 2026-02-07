@@ -1,5 +1,22 @@
 source:
   repo_id: "AmithAdiraju1694/segmentation-onnx-trifecta"
   revision: null
-  token: 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
+  token:
   local_files_only: false
+
+models:
+  segmentation_onnx: "segmentation.onnx"
+  segmentation_config: "segmentation_config.json"
+  facemask_onnx: "facemask.onnx"
+  textmask_onnx: "textmask.onnx"
+
+service:
+  input_size: 512
+  max_batch_size: 4
+  batch_timeout_ms: 4
+  max_concurrency_per_gpu: 2
+  gpu_id: 0
+  use_cuda: true
+  output_format: "packbits"
+  allow_webdataset: true
+  log_level: "info"

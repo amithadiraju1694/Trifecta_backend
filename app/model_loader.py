@@ -60,8 +60,7 @@ def _build_paths(snapshot_dir: str, config: AppConfig) -> ModelPaths:
 
 def _create_pool(onnx_path: str, config: AppConfig) -> OrtSessionPool:
     """Create an ONNX Runtime session pool on a single device."""
-    device_id = config.gpu_ids[0] if config.gpu_ids else None
-    session = build_session(onnx_path, device_id=device_id, use_cuda=config.use_cuda)
+    session = build_session(onnx_path, device_id=config.gpu_id, use_cuda=config.use_cuda)
     return OrtSessionPool([session], max_concurrency_per_gpu=config.max_concurrency_per_gpu)
 
 
